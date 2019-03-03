@@ -1,0 +1,38 @@
+Напсать ТЗ для разработчика по задаче:
+
+С помощью Apache Camel реализовать маршрут,
+который по таймеру будет очищать (вычитывать все сообщения)
+из всех очередей Apache ActiveMQ.
+Реализация через JMX подключение.
+
+
+Для реализации данной задачи необходимо узнать размер таймаута и
+JMXServiceURL
+Пока будем считать, что они приходят в сообщении Camel в формате .properties файла.
+Например:
+
+timeout=10000
+JMXServiceURL=service:jmx:rmi:///jndi/rmi://localhost:1099/jmxrmi
+
+Поэтому первая подзадача, которую надо сделать - это создать
+Processor для Camel Route, который будет извлекать из сообщения эти данные,
+и с их помощью ставить на таймер задачу по очистке очередей ActiveMQ.
+
+Вторая подзадача - это собственно реализация задачи очистки очередей:
+Для этого, скорее всего, с помощью JMXServiceURL нужно создать MBeanServerConnection
+и вызвать MBeanServerConnection.queryMBeans(ObjectName name, QueryExp query)
+
+Судя по тому, что показывает jconsole, в этом вызове  можно взять
+ObjectName name = org.apache.activemq:type=Broker,brokerName=localhost,destinationType=Queue,destinationName=*
+QueryExp query = null
+
+т.е. в качестве ObjectName берём template с произвольным значением для destinationName,
+и QueryExp = null - (т.е. вообще его не используем.)
+Но нужно обязательно уточнить по поводу фрагмента brokerName=localhost
+- возможно, вместо localhost там могут быть и другие имена хостов,
+например если они указаны вместо localhost в JMXServiceURL - лучше всего подцепиться
+jconsole-ю с другой машины и посмотреть что будет...
+
+В итоге queryMBeans должен нам вернуть Set из объектов реализующих интерфейс
+org.apache.activemq.broker.jmx.QueueViewMBean
+у каждого из них нужно вызывать метод purge() чтобы очередь была очищена.
